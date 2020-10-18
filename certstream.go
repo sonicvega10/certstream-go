@@ -8,17 +8,31 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	pingPeriod time.Duration = 15 * time.Second
-)
+type Configuration struct {
+	Timeout        time.Duration
+	Server         string
+	ShowHeartbeats bool
+}
 
-func CertStreamEventStream(skipHeartbeats bool) (chan jsonq.JsonQuery, chan error) {
+func (conf *Configuration) setDefaults() {
+	// Construct default values if none provided
+	if conf.Timeout == 0 {
+		conf.Timeout = time.Duration(15) * time.Second
+	}
+
+	if conf.Server == "" {
+		conf.Server = "wss://certstream.calidog.io"
+	}
+}
+
+func CertStreamEventStream(conf *Configuration) (chan jsonq.JsonQuery, chan error) {
+	conf.setDefaults()
 	outputStream := make(chan jsonq.JsonQuery)
 	errStream := make(chan error)
 
 	go func() {
 		for {
-			c, _, err := websocket.DefaultDialer.Dial("wss://certstream.calidog.io", nil)
+			c, _, err := websocket.DefaultDialer.Dial(conf.Server, nil)
 
 			if err != nil {
 				errStream <- errors.Wrap(err, "Error connecting to certstream! Sleeping a few seconds and reconnecting... ")
@@ -32,7 +46,7 @@ func CertStreamEventStream(skipHeartbeats bool) (chan jsonq.JsonQuery, chan erro
 			done := make(chan struct{})
 
 			go func() {
-				ticker := time.NewTicker(pingPeriod)
+				ticker := time.NewTicker(conf.Timeout)
 				defer ticker.Stop()
 
 				for {
@@ -63,7 +77,7 @@ func CertStreamEventStream(skipHeartbeats bool) (chan jsonq.JsonQuery, chan erro
 					continue
 				}
 
-				if skipHeartbeats && res == "heartbeat" {
+				if !conf.ShowHeartbeats && res == "heartbeat" {
 					continue
 				}
 
