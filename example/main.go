@@ -1,8 +1,8 @@
 package main
 
 import (
+	cs "github.com/CaliDog/certstream-go"
 	logging "github.com/op/go-logging"
-	cs "github.com/sysgoblin/certstream-go"
 )
 
 var log = logging.MustGetLogger("example")
